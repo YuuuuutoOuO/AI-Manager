@@ -1,10 +1,11 @@
-from PyQt6.QtWidgets import QWidget, QLabel
+from PyQt6.QtWidgets import QWidget, QLabel, QMenu, QApplication
 from PyQt6.QtCore import Qt, QPoint, pyqtSlot
-from PyQt6.QtGui import QMovie
+from PyQt6.QtGui import QMovie, QAction
 from config import settings
 from core.event_bus import bus
 from features.chat_ui.input_dialog import TextInputBox
 from features.chat_ui.chat_bubble import ChatBubble
+from features.history.viewer import HistoryWindow
 
 class PetWindow(QWidget):
     def __init__(self):
@@ -17,6 +18,8 @@ class PetWindow(QWidget):
         # 初始化聊天 UI
         self.chat_bubble = ChatBubble()
         bus.doro_response_ready.connect(self.display_reply)
+        # 預載歷史視窗 (先不顯示)
+        self.history_window = None
 
         # 1. 預先載入左右兩個 Movie 物件
         self.movie_left = QMovie(settings.GIF_PATH_LEFT)
@@ -92,3 +95,28 @@ class PetWindow(QWidget):
     def mouseReleaseEvent(self, event):
         self.is_dragging = False
         bus.drag_ended.emit()
+
+    def contextMenuEvent(self, event):
+        menu = QMenu(self)
+        
+        history_action = QAction("📜 查看回憶 (歷史紀錄)", self)
+        history_action.triggered.connect(self.open_history)
+        menu.addAction(history_action)
+        
+        menu.addSeparator()
+        
+        # 2. 修正：點擊這裡才真正關閉整個應用程式
+        quit_action = QAction("👋 讓 Doro 去睡覺 (關閉)", self)
+        quit_action.triggered.connect(QApplication.instance().quit) # 強制結束 app
+        menu.addAction(quit_action)
+        
+        menu.exec(event.globalPos())
+
+    def open_history(self):
+        if self.history_window is None:
+            self.history_window = HistoryWindow()
+        
+        self.history_window.load_data() # 先刷新資料再顯示
+        self.history_window.show()
+        self.history_window.raise_()      # 確保視窗在最前面
+        self.history_window.activateWindow()

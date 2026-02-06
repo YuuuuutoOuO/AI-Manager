@@ -2,3 +2,11 @@
 .env
 __pycache__/
 *.pyc
+*.json
+*.log
+*.sqlite3
+*.db
+*.csv
+*.xlsx
+*.zip
+*.gitignore
