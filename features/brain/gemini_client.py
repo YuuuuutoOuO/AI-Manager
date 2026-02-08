@@ -43,7 +43,7 @@ class GeminiBrain:
 
         # 5. 訂閱訊息事件
         # 當 Event Bus 收到使用者訊息時，觸發思考流程
-        bus.user_sent_message.connect(self.run_api_request)
+        # bus.user_sent_message.connect(self.run_api_request)
 
     def run_api_request(self, text):
         """
