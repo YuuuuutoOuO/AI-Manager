@@ -42,25 +42,17 @@ class HistoryWindow(QDialog):
 
     def load_data(self):
         data = self.logger.load_history()
-        html = ""
+        html = "<body style='color: black;'>" # ★ 設定全體預設黑字
         for msg in data:
-            time = msg['timestamp']
-            role = msg['role']
-            content = msg['text']
+            role_color = "blue" if msg['role'] == "You" else "#e60073"
+            role_name = "主人" if msg['role'] == "You" else "Doro"
             
-            if role == "You":
-                role_display = "主人"
-                # 主人標籤用藍色
-                role_html = f"<span style='color:blue; font-weight:bold;'>{role_display}:</span>"
-            else:
-                role_display = "Doro"
-                # Doro 標籤用桃紅色
-                role_html = f"<span style='color:#e60073; font-weight:bold;'>{role_display}:</span>"
-                
-            # ★ 關鍵修正：將 {content} 包在黑色的 span 裡面
-            html += f"<p style='color:gray; font-size:10px; margin-bottom:2px;'>{time}</p>"
-            html += f"<p style='margin-top:0;'>{role_html} <span style='color:black;'>{content}</span></p>"
-            html += "<hr>"
+            html += f"<div style='margin-bottom: 10px;'>"
+            html += f"<div style='color: gray; font-size: 11px;'>{msg['timestamp']}</div>"
+            html += f"<div style='color: {role_color}; font-weight: bold;'>{role_name}: "
+            html += f"<span style='color: black; font-weight: normal;'>{msg['text']}</span></div>"
+            html += "</div><hr style='border: 0.5px solid #eee;'>"
             
+        html += "</body>"
         self.text_browser.setHtml(html)
         self.text_browser.moveCursor(self.text_browser.textCursor().MoveOperation.End)

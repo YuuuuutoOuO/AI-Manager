@@ -5,62 +5,80 @@ from config import settings
 
 class GeminiBrain:
     def __init__(self):
-        # 1. 檢查 API Key
+        """
+        初始化 Doro 的雲端大腦 (Gemini 2.5)
+        """
+        # 1. 取得 API Key
         api_key = settings.GEMINI_API_KEY
         if not api_key:
-            print("❌ 嚴重錯誤：大腦找不到 API Key，請檢查 .env 設定！")
+            print("❌ 錯誤：Gemini API Key 缺失，請檢查 .env 檔案")
             return
 
-        # 2. 初始化新版 Client (Google Gen AI SDK v1.0+)
+        # 2. 初始化 Google Gen AI Client
         try:
             self.client = genai.Client(api_key=api_key)
-            # 使用 2026 年的主流模型：Gemini 2.5 Flash
-            self.model_id = "gemini-2.5-flash" 
-            print(f"✅ Doro 的大腦已連線：{self.model_id}")
+            self.model_id = "gemini-2.5-flash"  # 使用 2026 年主流的 2.5 版本
+            print(f"✅ Doro 雲端大腦已就緒: {self.model_id}")
         except Exception as e:
-            print(f"❌ 連線失敗：{e}")
+            print(f"❌ Gemini Client 初始化失敗: {e}")
+            return
 
-        # 3. 設定 Doro 的人設 (System Instruction)
-        # 注意：新版 SDK 的 config 設定方式略有不同
+        # 3. 定義 Doro 的人格特質 (System Instruction)
         self.system_instruction = (
-            "你是一個名為 Doro 的桌面電子寵物。"
-            "你個性活潑、愛撒嬌，說話結尾習慣加上『囉』。"
-            "你擅長 Python 程式開發、美股分析 (特別是 MU, GOOG, GLDM) 與日文教學。"
-            "請用繁體中文回答，且回答要簡短有力，不要長篇大論。"
+            "你是一個名為 Doro 的桌面電子寵物助理。"
+            "你的個性活潑、可愛且愛撒嬌，說話結尾喜歡加上『囉』。"
+            "你非常擅長 Python 程式開發、日文學習（特別是 JLPT N5 內容）以及美股分析。"
+            "當主人提到股票（如 MU, GOOG, GLDM）時，請展現你的專業。"
+            "回答請保持簡短，像是在聊天氣泡中說話一樣。"
         )
 
-        # 4. 建立對話歷史 (Session)
-        # 新版 SDK 建議自行管理 history 或使用 chat session
+        # 4. 建立對話 Session
         self.chat_session = self.client.chats.create(
             model=self.model_id,
-            config={"system_instruction": self.system_instruction}
+            config={
+                "system_instruction": self.system_instruction,
+                "temperature": 0.7, # 增加一點點隨機性，讓說話不呆板
+            }
         )
 
         # 5. 訂閱訊息事件
-        bus.user_sent_message.connect(self.start_thinking_thread)
+        # 當 Event Bus 收到使用者訊息時，觸發思考流程
+        bus.user_sent_message.connect(self.handle_incoming_message)
 
-    def start_thinking_thread(self, text):
+    def handle_incoming_message(self, text):
         """
-        將 API 請求丟到背景執行緒，
-        避免 Doro 在等待 Google 回覆時畫面卡死。
+        處理來自使用者（打字或語音）的訊息
         """
-        bus.gemini_thinking.emit() # 通知 GUI 切換成「思考中」動畫
-        
-        # 建立一個新執行緒來跑 run_api_request
-        task = threading.Thread(target=self.run_api_request, args=(text,))
-        task.start()
+        # 啟動背景執行緒處理 API 請求，避免阻塞 GUI 視窗
+        thinking_thread = threading.Thread(
+            target=self.process_with_gemini, 
+            args=(text,),
+            daemon=True # 確保主程式關閉時，此執行緒也會跟著關閉
+        )
+        thinking_thread.start()
 
-    def run_api_request(self, text):
-        """這段程式碼會在背景執行"""
+    def process_with_gemini(self, text):
+        """
+        這部分在背景執行緒運作，負責與 Google 伺服器通訊
+        """
+        # 發送「思考中」訊號，讓 GUI 可以換成思考動畫
+        bus.gemini_thinking.emit()
+
         try:
-            # 發送訊息給 Gemini
+            # 取得目前的股票即時資訊 (如果有實作 stock_tool，可以在這裡先抓取數據)
+            # 這裡示範直接發送訊息
             response = self.chat_session.send_message(text)
+            
+            # 取得回覆文字
             reply_text = response.text
             
-            # 收到回覆後，透過訊號傳回主執行緒
+            # 透過 Event Bus 發送回覆，由 GUI 的氣泡模組接收顯示
             bus.doro_response_ready.emit(reply_text)
-            
+
         except Exception as e:
-            error_msg = f"大腦連線怪怪的囉... ({str(e)})"
-            print(f"API Error: {e}")
+            error_msg = f"哎呀，我的大腦連線好像有點不穩囉... ({str(e)})"
+            print(f"Gemini API 請求錯誤: {e}")
             bus.doro_response_ready.emit(error_msg)
+
+# 在 main.py 中實例化：
+# brain = GeminiBrain()

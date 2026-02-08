@@ -1,3 +1,4 @@
 PyQt6
 google-genai
 python-dotenv
+yfinance
