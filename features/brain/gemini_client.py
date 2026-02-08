@@ -43,19 +43,32 @@ class GeminiBrain:
 
         # 5. 訂閱訊息事件
         # 當 Event Bus 收到使用者訊息時，觸發思考流程
-        bus.user_sent_message.connect(self.handle_incoming_message)
+        bus.user_sent_message.connect(self.run_api_request)
 
-    def handle_incoming_message(self, text):
+    def run_api_request(self, text):
         """
-        處理來自使用者（打字或語音）的訊息
+        被 BrainRouter 呼叫，負責執行 Gemini API 請求。
+        注意：BrainRouter 已經在背景執行緒 (Thread) 呼叫此函式，
+        所以這裡可以直接執行 API 請求，不需要再開 threading.Thread。
         """
-        # 啟動背景執行緒處理 API 請求，避免阻塞 GUI 視窗
-        thinking_thread = threading.Thread(
-            target=self.process_with_gemini, 
-            args=(text,),
-            daemon=True # 確保主程式關閉時，此執行緒也會跟著關閉
-        )
-        thinking_thread.start()
+        # 1. 發送「思考中」訊號，讓 GUI 可以換成思考動畫
+        bus.gemini_thinking.emit()
+
+        try:
+            # 2. 發送 API 請求
+            # (如果未來要加股票 StockTool，程式碼就寫在這裡)
+            response = self.chat_session.send_message(text)
+            
+            # 3. 取得回覆
+            reply_text = response.text
+            
+            # 4. 透過 Event Bus 發送回覆
+            bus.doro_response_ready.emit(reply_text)
+
+        except Exception as e:
+            error_msg = f"哎呀，我的大腦連線好像有點不穩囉... ({str(e)})"
+            print(f"Gemini API 請求錯誤: {e}")
+            bus.doro_response_ready.emit(error_msg)
 
     def process_with_gemini(self, text):
         """
