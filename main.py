@@ -6,18 +6,19 @@ sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
 from core.window import PetWindow
 from features.movement.controller import MovementController
-# from features.brain.gemini_client import GeminiBrain  <-- 這一行刪掉
-from features.brain.brain_router import BrainRouter   # <-- 改用這個
+from features.brain.brain_router import BrainRouter
 from features.history.storage import HistoryLogger
+from core.service_manager import ensure_ollama_running
 
 def main():
+    # 1. ★ 在建立視窗之前，先確保大腦 (Ollama) 已經醒來
+    ensure_ollama_running()
+
     app = QApplication(sys.argv)
     app.setQuitOnLastWindowClosed(False)
     
-    # ★ 初始化大腦路由器 (它會自動管理 Ollama 和 Gemini)
+    # 初始化大腦路由器
     router = BrainRouter()
-    
-    # 為了防止被 GC 回收，掛在 app 上
     app.router = router
     
     # 初始化歷史紀錄
