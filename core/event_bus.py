@@ -8,7 +8,7 @@ class EventBus(QObject):
     user_sent_message = pyqtSignal(str)      # 使用者發送訊息 (打字或語音)
     gemini_thinking = pyqtSignal()           # 讓 Doro 知道現在要換成「思考中」動畫
     doro_response_ready = pyqtSignal(str)    # Gemini 回覆了
-
-bus = EventBus()
+    idle_talk_toggled = pyqtSignal(bool)     # 使用者開關閒聊模式
+    movement_toggled = pyqtSignal(bool)      # 移動開關訊號
 
 bus = EventBus()
